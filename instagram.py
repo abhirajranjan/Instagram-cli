@@ -2,6 +2,52 @@ import requests, json, pickle, os
 from collections import namedtuple
 
 
+class UserProfile:
+        def __init__(self, dict):
+                self.__dict__.update(dict)
+                self.__protdict__ = self.__dict__
+                userProfile = self.__inst__.getJsonByUsername(self.username)
+                try:
+                        self.__protdict__.update(userProfile['entry_data']['ProfilePage'][0]['graphql']['user'])
+                except Exception:
+                        return '\'{0}\' Not Found'.format(self.username)
+
+        def __getitem__(self, item):
+                if item in self.__dict__:
+                        return self.__dict__[item]
+                elif item in self.__protdict__:
+                        return self.__protdict__[item]
+                else:
+                        raise KeyError
+
+        def __repr__(self):
+                try:
+                        username = self['username']
+                except KeyError:
+                        username=''
+                return 'userProfile( username=\'{0}\' )'.format(username)\
+                       if username else 'userProfile()'
+
+        def __getattr__(self, attr):
+                if attr in ['story', 'posts']:
+                        return getattr(self, attr)                        
+                return self[attr]
+        
+        def story(self, args=['Source', 'iterlink']):
+                if args not in ['Source', 'iterlink']: return
+                if args == 'Source':
+                        return self.__inst__.getStoryDataByUserName(self.username)['reels_media'][0]['items']
+                return self.__inst__.getStoryByUserName(self.username)
+
+        @property
+        def posts(self):
+                pass
+
+        @posts.getter
+        def posts(self):
+                return self['__inst__'].session.getpost(self['username'])
+
+
 class Instagram:
         session        = requests.Session()
         ## session in login is just for backup session
@@ -46,9 +92,9 @@ class Instagram:
                                 pass
 
                 if 'username' and 'password' in kwargs:
-                        print(self.performLogin(username=args['username'], password=args['password']))
+                        print(self.login(username=args['username'], password=args['password']))
                 elif len(args) == 2:
-                        print(self.performLogin(username=args[0], password=args[1]))
+                        print(self.login(username=args[0], password=args[1]))
 
         @property
         def isAuth(self):
@@ -66,7 +112,7 @@ class Instagram:
         def username(self):
                 return self._login.username
 
-        def performLogin(self, username, password):
+        def login(self, username, password):
                 req = self.session.get(self.url.base)
 
                 self.session.headers['X-CSRFToken'] = req.cookies['csrftoken']
@@ -131,7 +177,7 @@ class Instagram:
         def storytray(self):
                 return json.loads(self.session.get(self.url.storytray).text)
 
-        def getStoryDataByUserName(self, username='', *args):
+        def getStoryDataByUserName(self, username=''):
                 user = self._getUser(self.getJsonByUsername(username))
                 ## returning data['reels'][{id}]['items'][0]['video_versions'][0]['url']
                 ## this gives video formats of video type stories
@@ -139,13 +185,13 @@ class Instagram:
 
         def getStoryByUserName(self, username=''):
                 if username:
-                        slides = self.getStoryDataByUserName(username, 'getidalso')
+                        slides = self.getStoryDataByUserName(username)
                 elif self.cache.story:
-                        slides = self.getStoryDataByUserName(self.cache.story, 'getidalso')
+                        slides = self.getStoryDataByUserName(self.cache.story)
                 else:
                         SyntaxError('getStoryByUserName called without any args')
 
-                for item in slides['reels_media'][0]:
+                for item in slides['reels_media'][0]['items']:
                         yield item['image_versions2']['candidates'][0]['url']
                         if 'video_versions' in item:
                                 yield item['video_versions'][0]['url']
@@ -166,3 +212,6 @@ class Instagram:
                                                 for i , post in enumerate(posts):
                                                         if (post[i]['node']['__typename'] == 'GraphImage') and not (post[i]['node']['is_video']):
                                                                 self._download(post[i]['node']['display_url'])
+        def __getattr__(self, username):
+                profile =  UserProfile({'username':username, '__inst__':self})
+                return profile
