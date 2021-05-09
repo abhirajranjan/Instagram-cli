@@ -36,11 +36,13 @@ else:
 #### fetch any user data on instagram
 
 after creating Instagram instance (insta) 
+
 NOTE :: login is not always necessary by default logged in as guest and can fetch open profiles as well as private user's profile picture but controlling like features are not available
 
 you can get anyone's instance over intagram by
 ```
-insta.{username}```
+insta.{username}
+```
 
 like
 
