@@ -1,4 +1,4 @@
-# Python-Instagram-API
+# Instagram CLI
 
 aims to bring API-like features (rich and intensive functions then official API) of instagram into python
 
